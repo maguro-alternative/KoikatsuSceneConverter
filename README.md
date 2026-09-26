@@ -13,17 +13,18 @@
 </div>
 
 > [!CAUTION]
-> **変換前にシーンをバックアップしてください。** Text オブジェクトは KK に存在しないため削除され、変換後のファイルからは復元できません。元ファイル自体は書き換えません（別名で出力します）。
+> **変換前にシーンを必ずバックアップしてください。** 変換後のシーンをサンシャインで読み込むと元のシーンデータから一部のデータが抜け落ちる場合があります。
 >
-> **Back up your scenes before converting.** Text objects do not exist in KK; they are removed and cannot be restored from the converted file. The source file itself is never modified (output goes to a new file).
+> **Always back up your scenes before converting.** Loading a converted scene back into Koikatsu Sunshine may lose some of the data from the original scene.
 
 ---
 
 ## 日本語
 
-### これは何か
+### 概要
 
-KKS の Studio シーン（`.png`）を KK の CharaStudio で読めるように変換します。GUI と CLI の両方があり、単一の exe で動きます。
+コイカツサンシャインのキャラスタジオで作成されたシーンデータを無印のキャラスタジオで読めるように変換します。
+GUIアプリとして使えますが、CLI上で扱うこともできます。
 
 **変換で行うこと**
 
