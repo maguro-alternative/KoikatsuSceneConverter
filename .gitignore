@@ -5,6 +5,7 @@ dist/
 *.suo
 .vs/
 ui-lang.txt
+last-output-dir.txt
 # game data / scenes never go into the repo, except the small test fixtures
 # (tests/fixtures/real/, used by RealSceneTests in CI)
 *.png
