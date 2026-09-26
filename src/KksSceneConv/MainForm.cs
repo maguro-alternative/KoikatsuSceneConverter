@@ -31,7 +31,6 @@ namespace KksSceneConv
         readonly CheckBox chkRecurse = new CheckBox { AutoSize = true, Checked = true, Margin = new Padding(12, 4, 3, 0) };
         readonly CheckBox chkOverwrite = new CheckBox { AutoSize = true, Margin = new Padding(12, 4, 3, 0) };
         readonly CheckBox chkVerify = new CheckBox { AutoSize = true, Checked = true, Margin = new Padding(12, 4, 3, 0) };
-        readonly CheckBox chkVerbose = new CheckBox { AutoSize = true, Margin = new Padding(12, 4, 3, 0) };
         readonly PictureBox pic = new PictureBox
         {
             Width = 176, Height = 99, SizeMode = PictureBoxSizeMode.Zoom, BorderStyle = BorderStyle.FixedSingle,
@@ -46,7 +45,10 @@ namespace KksSceneConv
         readonly Button btnCheck = new Button { AutoSize = true };
         readonly Button btnCancel = new Button { AutoSize = true, Enabled = false };
         readonly Button btnOpenOut = new Button { AutoSize = true };
-        readonly CheckBox btnLog = new CheckBox { Appearance = Appearance.Button, AutoSize = true, Checked = true };
+        // Log is hidden by default: the analysis panel, progress bar and status line are what
+        // users act on; the per-file log is there for troubleshooting only.
+        readonly CheckBox btnLog = new CheckBox { Appearance = Appearance.Button, AutoSize = true, Checked = false };
+        const int LogHeight = 200;
         readonly ProgressBar pb = new ProgressBar { Dock = DockStyle.Fill, Height = 18 };
         readonly Label lblStatus = new Label { AutoSize = true, Margin = new Padding(3, 4, 3, 4) };
         readonly RichTextBox log = new RichTextBox
@@ -81,14 +83,14 @@ namespace KksSceneConv
             Text = "KKS → KK Scene Converter";
             AutoScaleMode = AutoScaleMode.Dpi;
             Font = SystemFonts.MessageBoxFont;
-            MinimumSize = new Size(640, 560);
-            Size = new Size(760, 680);
+            MinimumSize = new Size(640, 545);
+            Size = new Size(760, 545);
             StartPosition = FormStartPosition.CenterScreen;
 
             BuildLayout();
             HookEvents();
             ApplyLang();
-            SetLogVisible(true);
+            SetLogVisible(false);
             EnableDrop(this);
             UpdateModeUi();
 
@@ -140,9 +142,9 @@ namespace KksSceneConv
             tout.Controls.Add(btnBrowseOut, 1, 0);
             Loc(btnBrowseOut, "Browse…");
             var opts = new FlowLayoutPanel { AutoSize = true, Dock = DockStyle.Fill, WrapContents = true };
-            opts.Controls.Add(chkRecurse); opts.Controls.Add(chkOverwrite); opts.Controls.Add(chkVerify); opts.Controls.Add(chkVerbose);
+            opts.Controls.Add(chkRecurse); opts.Controls.Add(chkOverwrite); opts.Controls.Add(chkVerify);
             Loc(chkRecurse, "Include subfolders"); Loc(chkOverwrite, "Overwrite the original files");
-            Loc(chkVerify, "Verify output"); Loc(chkVerbose, "Verbose log");
+            Loc(chkVerify, "Verify output");
             tout.Controls.Add(opts, 0, 1); tout.SetColumnSpan(opts, 2);
             grpOut.Controls.Add(tout);
 
@@ -226,9 +228,13 @@ namespace KksSceneConv
 
         void SetLogVisible(bool v)
         {
+            bool was = log.Visible;
             log.Visible = v;
             root.RowStyles[7] = v ? new RowStyle(SizeType.Percent, 100) : new RowStyle(SizeType.Absolute, 0);
             btnLog.Text = L.T(v ? "Hide log" : "Show log");
+            // grow / shrink the window with the log pane so the rest of the layout stays put
+            if (v && !was) Height += LogHeight;
+            else if (!v && was) Height = Math.Max(MinimumSize.Height, Height - LogHeight);
         }
 
         void UpdateModeUi()
@@ -464,7 +470,6 @@ namespace KksSceneConv
                     catch (ExternalException) { SetPreview(null); }
                 }
                 lblInfo.Text = Describe(t);
-                if (chkVerbose.Checked) foreach (var l in lines) AppendLog(l);
                 lblStatus.Text = L.T("Ready. Drop a scene (or click Browse…), then press ▶ Convert.");
             }
             catch (NotASceneException e)
@@ -560,7 +565,7 @@ namespace KksSceneConv
                 lblStatus.Text = L.T(rbDir.Checked && Directory.Exists(txtIn.Text) ? "No .png scenes found." : "No input selected.");
                 return;
             }
-            bool overwrite = chkOverwrite.Checked, verify = chkVerify.Checked, verbose = chkVerbose.Checked;
+            bool overwrite = chkOverwrite.Checked, verify = chkVerify.Checked;
             if (!checkOnly && overwrite)
             {
                 // Irreversible: the KKS originals are replaced by the KK versions.
@@ -602,7 +607,7 @@ namespace KksSceneConv
                             if (checkOnly)
                             {
                                 var data = File.ReadAllBytes(src);
-                                var t = new Transcoder(data, verbose ? (Action<string>)AppendLogBg : null);
+                                var t = new Transcoder(data);
                                 t.Scene(false);
                                 bool good = t.TailMarkFound == Transcoder.TailMark;
                                 AppendLogBg((good ? "OK  " : "NG  ") + name + " : version " + t.SrcVersion + (t.IsKks ? " (KKS)" : " (KK)")
@@ -613,7 +618,7 @@ namespace KksSceneConv
                             {
                                 {
                                     var data = File.ReadAllBytes(src);
-                                    var t = new Transcoder(data, verbose ? (Action<string>)AppendLogBg : null);
+                                    var t = new Transcoder(data);
                                     byte[] outp;
                                     try { outp = t.Scene(true); }
                                     catch (AlreadyKkException)
@@ -692,7 +697,7 @@ namespace KksSceneConv
             btnRun.Enabled = btnCheck.Enabled = btnBrowseIn.Enabled = !b;
             rbFile.Enabled = rbDir.Enabled = txtIn.Enabled = !b;
             txtOut.Enabled = btnBrowseOut.Enabled = !b && !chkOverwrite.Checked;
-            chkOverwrite.Enabled = chkVerify.Enabled = chkVerbose.Enabled = !b;
+            chkOverwrite.Enabled = chkVerify.Enabled = !b;
             chkRecurse.Enabled = !b && rbDir.Checked;
             btnCancel.Enabled = b;
             UseWaitCursor = b;
