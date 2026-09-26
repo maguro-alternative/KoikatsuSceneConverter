@@ -72,6 +72,8 @@ namespace KksSceneConv
             ["Checking"] = "検証中",
             ["Done"] = "完了",
             ["Cancelled"] = "キャンセルしました",
+            ["Cancelling…"] = "キャンセル中…",
+            ["Could not list input files"] = "入力ファイルを列挙できませんでした",
             ["converted"] = "変換",
             ["skipped"] = "スキップ",
             ["failed"] = "失敗",
