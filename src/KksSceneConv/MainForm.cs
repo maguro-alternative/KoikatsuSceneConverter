@@ -25,8 +25,9 @@ namespace KksSceneConv
         };
         readonly TextBox txtOut = new TextBox { Dock = DockStyle.Fill };
         readonly Button btnBrowseOut = new Button { AutoSize = true };
-        readonly Label lblSuffix = new Label { AutoSize = true, Margin = new Padding(0, 6, 3, 0) };
-        readonly TextBox txtSuffix = new TextBox { Width = 60, Text = "_kk" };
+        /// <summary>Output name suffix, fixed: "#01.png" -> "#01_kk.png". The CLI uses the
+        /// same value and batch runs skip files that already carry it.</summary>
+        const string Suffix = "_kk";
         readonly CheckBox chkRecurse = new CheckBox { AutoSize = true, Checked = true, Margin = new Padding(12, 4, 3, 0) };
         readonly CheckBox chkOverwrite = new CheckBox { AutoSize = true, Margin = new Padding(12, 4, 3, 0) };
         readonly CheckBox chkVerify = new CheckBox { AutoSize = true, Checked = true, Margin = new Padding(12, 4, 3, 0) };
@@ -69,8 +70,11 @@ namespace KksSceneConv
         // Output folder policy: default = same folder as the source (the _kk suffix already
         // tells the files apart). Once the user picks a folder, or one was remembered from a
         // previous session, it sticks and is no longer overwritten when the input changes.
-        bool outUserSet;
-        bool settingOut;  // true while the code (not the user) writes txtOut
+        // In single-file mode the field holds the full output file path (…\#01_kk.png);
+        // in folder / multi-file mode it holds the output folder.
+        string outDirOverride;  // folder the user chose (Browse… / typed) or remembered; null = source folder
+        bool settingOut;        // true while the code (not the user) writes txtOut
+        bool outEdited;         // user typed into txtOut since the last programmatic set
 
         public MainForm(string[] preload)
         {
@@ -88,8 +92,7 @@ namespace KksSceneConv
             EnableDrop(this);
             UpdateModeUi();
 
-            string last = Settings.LoadLastOutputDir();
-            if (last != null) { SetOutText(last); outUserSet = true; }
+            outDirOverride = Settings.LoadLastOutputDir();
 
             if (preload != null && preload.Length > 0)
                 Load += (s, e) => SetInputs(preload);
@@ -137,9 +140,8 @@ namespace KksSceneConv
             tout.Controls.Add(btnBrowseOut, 1, 0);
             Loc(btnBrowseOut, "Browse…");
             var opts = new FlowLayoutPanel { AutoSize = true, Dock = DockStyle.Fill, WrapContents = true };
-            opts.Controls.Add(lblSuffix); opts.Controls.Add(txtSuffix);
             opts.Controls.Add(chkRecurse); opts.Controls.Add(chkOverwrite); opts.Controls.Add(chkVerify); opts.Controls.Add(chkVerbose);
-            Loc(lblSuffix, "Suffix"); Loc(chkRecurse, "Include subfolders"); Loc(chkOverwrite, "Overwrite existing");
+            Loc(chkRecurse, "Include subfolders"); Loc(chkOverwrite, "Overwrite existing");
             Loc(chkVerify, "Verify output"); Loc(chkVerbose, "Verbose log");
             tout.Controls.Add(opts, 0, 1); tout.SetColumnSpan(opts, 2);
             grpOut.Controls.Add(tout);
@@ -195,8 +197,16 @@ namespace KksSceneConv
             btnBrowseIn.Click += (s, e) => BrowseIn();
             btnBrowseOut.Click += (s, e) => BrowseOut();
             txtIn.Leave += (s, e) => { if (inputs.Count <= 1) { inputs.Clear(); if (txtIn.Text.Length > 0) SetInputs(new[] { txtIn.Text }); } };
-            txtOut.TextChanged += (s, e) => { if (!settingOut) outUserSet = true; };
-            txtOut.Leave += (s, e) => { if (outUserSet && Directory.Exists(txtOut.Text.Trim())) Settings.SaveLastOutputDir(txtOut.Text.Trim()); };
+            txtOut.TextChanged += (s, e) => { if (!settingOut) outEdited = true; };
+            txtOut.Leave += (s, e) =>
+            {
+                if (!outEdited) return;
+                outEdited = false;
+                string o = txtOut.Text.Trim();
+                if (o.Length == 0) return;
+                string dir = SingleFileMode && !Directory.Exists(o) ? Path.GetDirectoryName(o) : o;
+                if (!string.IsNullOrEmpty(dir) && Directory.Exists(dir)) UserChoseOutDir(dir);
+            };
             btnRun.Click += (s, e) => Run(false);
             btnCheck.Click += (s, e) => Run(true);
             btnCancel.Click += (s, e) => { if (cts != null) cts.Cancel(); };
@@ -261,7 +271,7 @@ namespace KksSceneConv
             {
                 rbDir.Checked = true;
                 txtIn.Text = dir;
-                SetDefaultOut(dir);
+                RefreshOutDefault();
                 AnalyzeFolder(dir);
                 return;
             }
@@ -272,31 +282,53 @@ namespace KksSceneConv
             {
                 txtIn.Text = files[0];
                 inputs.Clear();
-                SetDefaultOut(Path.GetDirectoryName(files[0]));
+                RefreshOutDefault();
                 AnalyzeFileAsync(files[0]);
             }
             else
             {
                 txtIn.Text = files.Count + " " + L.T("files selected");
-                SetDefaultOut(Path.GetDirectoryName(files[0]));
+                RefreshOutDefault();
                 SetPreview(null);
                 lblInfo.Text = string.Join(Environment.NewLine, files.ConvertAll(Path.GetFileName));
             }
         }
 
-        void SetOutText(string dir)
+        void SetOutText(string text)
         {
             settingOut = true;
-            try { txtOut.Text = dir; }
+            try { txtOut.Text = text; outEdited = false; }
             finally { settingOut = false; }
         }
 
-        /// <summary>Default output = the source's own folder, unless the user already
-        /// chose (or a previous session remembered) a folder.</summary>
-        void SetDefaultOut(string dir)
+        /// <summary>True when exactly one scene file is selected: the output field then
+        /// shows the output file path rather than a folder.</summary>
+        bool SingleFileMode
         {
-            if (outUserSet || string.IsNullOrEmpty(dir)) return;
-            SetOutText(dir);
+            get { return rbFile.Checked && inputs.Count == 0 && File.Exists(txtIn.Text); }
+        }
+
+        /// <summary>Default output folder = the source's own folder, unless the user chose
+        /// (or a previous session remembered) one. Single file: full path of the output
+        /// file ("#01.png" -> "#01_kk.png"); folder / multi-file: the folder.</summary>
+        void RefreshOutDefault()
+        {
+            string srcDir = null;
+            if (rbDir.Checked) srcDir = Directory.Exists(txtIn.Text) ? txtIn.Text : null;
+            else if (inputs.Count > 0) srcDir = Path.GetDirectoryName(inputs[0]);
+            else if (File.Exists(txtIn.Text)) srcDir = Path.GetDirectoryName(txtIn.Text);
+            if (string.IsNullOrEmpty(srcDir)) return;
+            string dir = outDirOverride ?? srcDir;
+            if (SingleFileMode)
+                SetOutText(Path.Combine(dir, Path.GetFileNameWithoutExtension(txtIn.Text) + Suffix + ".png"));
+            else
+                SetOutText(dir);
+        }
+
+        void UserChoseOutDir(string dir)
+        {
+            outDirOverride = dir;
+            Settings.SaveLastOutputDir(dir);
         }
 
         void BrowseIn()
@@ -320,24 +352,46 @@ namespace KksSceneConv
 
         void BrowseOut()
         {
+            if (SingleFileMode)
+            {
+                string cur = txtOut.Text.Trim();
+                using (var d = new SaveFileDialog
+                {
+                    Title = L.T("Select the output file"), Filter = "Studio scene (*.png)|*.png|All files|*.*",
+                    DefaultExt = "png", AddExtension = true, OverwritePrompt = false,  // overwrite is handled by the checkbox at run time
+                })
+                {
+                    string curDir = null;
+                    try { curDir = Path.GetDirectoryName(cur); } catch { }
+                    if (!string.IsNullOrEmpty(curDir) && Directory.Exists(curDir)) d.InitialDirectory = curDir;
+                    d.FileName = cur.Length > 0 ? Path.GetFileName(cur) : Path.GetFileNameWithoutExtension(txtIn.Text) + Suffix + ".png";
+                    if (d.ShowDialog(this) == DialogResult.OK)
+                    {
+                        SetOutText(d.FileName);
+                        UserChoseOutDir(Path.GetDirectoryName(d.FileName));
+                    }
+                }
+                return;
+            }
             using (var d = new FolderBrowserDialog { Description = L.T("Select the output folder"), UseDescriptionForTitle = true })
             {
                 if (Directory.Exists(txtOut.Text)) d.SelectedPath = txtOut.Text;
                 if (d.ShowDialog(this) == DialogResult.OK)
                 {
                     SetOutText(d.SelectedPath);
-                    outUserSet = true;
-                    Settings.SaveLastOutputDir(d.SelectedPath);
+                    UserChoseOutDir(d.SelectedPath);
                 }
             }
         }
 
         void OpenOut()
         {
-            string o = txtOut.Text;
+            string o = txtOut.Text.Trim();
             if (string.IsNullOrWhiteSpace(o)) return;
             try
             {
+                if (SingleFileMode && !Directory.Exists(o)) o = Path.GetDirectoryName(o);  // field holds a file path
+                if (string.IsNullOrEmpty(o)) return;
                 if (!Directory.Exists(o)) Directory.CreateDirectory(o);
                 Process.Start(new ProcessStartInfo("explorer.exe", "\"" + o + "\"") { UseShellExecute = true });
             }
@@ -357,7 +411,7 @@ namespace KksSceneConv
             SetPreview(null);
             try
             {
-                var jobs = Jobs.Build(dir, txtOut.Text, txtSuffix.Text, chkRecurse.Checked);
+                var jobs = Jobs.Build(dir, txtOut.Text, Suffix, chkRecurse.Checked);
                 lblInfo.Text = L.T("Folder") + ": " + dir + Environment.NewLine + jobs.Count + " " + L.T("scenes to convert");
             }
             catch (Exception e) { lblInfo.Text = L.T("Could not analyze") + ": " + e.Message; }
@@ -442,17 +496,22 @@ namespace KksSceneConv
         List<KeyValuePair<string, string>> BuildJobs()
         {
             string outDir = txtOut.Text.Trim();
-            string suffix = txtSuffix.Text;
             var jobs = new List<KeyValuePair<string, string>>();
             if (rbDir.Checked)
             {
                 if (!Directory.Exists(txtIn.Text)) return jobs;
-                return Jobs.Build(txtIn.Text, outDir, suffix, chkRecurse.Checked);
+                return Jobs.Build(txtIn.Text, outDir, Suffix, chkRecurse.Checked);
             }
             var files = inputs.Count > 0 ? new List<string>(inputs) : new List<string>();
             if (files.Count == 0 && File.Exists(txtIn.Text)) files.Add(txtIn.Text);
+            if (SingleFileMode && files.Count == 1 && !Directory.Exists(outDir) && !outDir.EndsWith("\\") && !outDir.EndsWith("/"))
+            {
+                // The field holds the output file path itself.
+                jobs.Add(new KeyValuePair<string, string>(files[0], outDir));
+                return jobs;
+            }
             foreach (var f in files)
-                jobs.Add(new KeyValuePair<string, string>(f, Path.Combine(outDir, Path.GetFileNameWithoutExtension(f) + suffix + ".png")));
+                jobs.Add(new KeyValuePair<string, string>(f, Path.Combine(outDir, Path.GetFileNameWithoutExtension(f) + Suffix + ".png")));
             return jobs;
         }
 
@@ -475,6 +534,18 @@ namespace KksSceneConv
             {
                 lblStatus.Text = L.T(rbDir.Checked && Directory.Exists(txtIn.Text) ? "No .png scenes found." : "No input selected.");
                 return;
+            }
+            if (!checkOnly)
+            {
+                foreach (var job in jobs)
+                {
+                    if (string.Equals(Path.GetFullPath(job.Key), Path.GetFullPath(job.Value), StringComparison.OrdinalIgnoreCase))
+                    {
+                        MessageBox.Show(this, L.T("Output file must be different from the input file.") + Environment.NewLine + job.Key,
+                            Text, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        return;
+                    }
+                }
             }
             bool overwrite = chkOverwrite.Checked, verify = chkVerify.Checked, verbose = chkVerbose.Checked;
             SetBusy(true);
@@ -569,7 +640,7 @@ namespace KksSceneConv
                 AppendLog("=== " + summary + " ===");
                 // A folder that was actually converted into is worth remembering, but only
                 // when the user chose it; the per-source default must not stick.
-                if (!checkOnly && ok > 0 && outUserSet) Settings.SaveLastOutputDir(txtOut.Text.Trim());
+                if (!checkOnly && ok > 0 && outDirOverride != null) Settings.SaveLastOutputDir(outDirOverride);
                 if (closeAfterRun) Close();
             }
         }
@@ -592,7 +663,7 @@ namespace KksSceneConv
         {
             busy = b;
             btnRun.Enabled = btnCheck.Enabled = btnBrowseIn.Enabled = btnBrowseOut.Enabled = !b;
-            rbFile.Enabled = rbDir.Enabled = txtIn.Enabled = txtOut.Enabled = txtSuffix.Enabled = !b;
+            rbFile.Enabled = rbDir.Enabled = txtIn.Enabled = txtOut.Enabled = !b;
             chkOverwrite.Enabled = chkVerify.Enabled = chkVerbose.Enabled = !b;
             chkRecurse.Enabled = !b && rbDir.Checked;
             btnCancel.Enabled = b;
