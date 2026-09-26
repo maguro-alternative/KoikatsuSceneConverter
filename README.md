@@ -41,7 +41,7 @@ GUIアプリとして使えますが、CLI上で扱うこともできます。
 
 1. シーン（`.png`）、複数のシーン、またはフォルダを**ウィンドウにドロップ**（または「参照…」）。exe のアイコンにドロップしても開けます
 2. ドロップした時点で解析結果が表示されます（バージョン、オブジェクト数、削除される Text の数、書き換えられるカードブロック、Timeline の変更）
-3. 出力先を確認（既定は元ファイルと同じフォルダ、ファイル名は `元の名前_kk.png`）。「参照…」で一度選んだ出力先は次回以降も記憶され、入力を選び直しても変わりません
+3. 出力先を確認。シーン 1 枚のときは出力ファイルのパス（`...\scene\kks\#01.png` → `...\scene\kks\#01_kk.png`）、フォルダや複数ファイルのときは出力フォルダが入ります。「参照…」で一度選んだフォルダは次回以降も記憶され、入力を選び直しても変わりません
 4. **▶ 変換開始**
 
 「検証のみ」は変換せずに構造を解析し、末尾マーカーまで正しく読めるかを確認します。KK のシーンにも使えるので、変換結果の確認にも使えます。「出力を検証」をオンにしておくと、変換後に出力を自動で再解析します。
@@ -115,7 +115,7 @@ Grab a build from [Releases](../../releases): the **self-contained** exe (≈66 
 
 ### Usage
 
-GUI: drop a scene, several scenes or a folder into the window (or onto the exe icon), read the analysis, confirm the output folder (default: the source's own folder, files named `<name>_kk.png`; a folder picked with **Browse…** is remembered for later sessions and is not reset when the input changes) and press **▶ Convert**. **Check only** parses without writing and works on KK scenes too.
+GUI: drop a scene, several scenes or a folder into the window (or onto the exe icon), read the analysis, confirm the output (for a single scene the field holds the output file path, `…\scene\kks\#01.png` → `…\scene\kks\#01_kk.png`; for a folder or several files it holds the output folder; a folder picked with **Browse…** is remembered for later sessions and is not reset when the input changes) and press **▶ Convert**. **Check only** parses without writing and works on KK scenes too.
 
 CLI:
 
