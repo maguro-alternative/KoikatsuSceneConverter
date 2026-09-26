@@ -76,6 +76,7 @@ KksSceneConv.exe help
 ```powershell
 pwsh -File tools/build.ps1                                 # dist\self-contained と dist\lite を生成
 pwsh -File tools/selftest.ps1 -Scene "KKS のシーン.png"   # 変換 → 再解析 → Python 版と一致するか比較
+dotnet test KksSceneConv.sln                               # 単体テスト（合成シーンを使うためシーン不要）
 ```
 
 .NET 8 SDK 以降が必要です。**シーンはご自身で用意してください**。リポジトリにゲーム素材やシーンは含まれません。
@@ -129,6 +130,7 @@ Exit codes: 0 ok, 1 failed / NG, 2 usage. The exe is a GUI-subsystem binary, so 
 ```powershell
 pwsh -File tools/build.ps1
 pwsh -File tools/selftest.ps1 -Scene "your KKS scene.png"
+dotnet test KksSceneConv.sln   # unit tests (synthetic scenes, no game data needed)
 ```
 
 Requires the .NET 8 SDK or newer. **Bring your own scenes**; the repository contains no game assets. [exapmle/kks2kk.py](exapmle/kks2kk.py) is the Python reference the C# port was verified against (byte-identical output).

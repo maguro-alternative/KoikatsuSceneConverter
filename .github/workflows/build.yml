@@ -17,6 +17,9 @@ jobs:
         with:
           dotnet-version: '8.0.x'
 
+      - name: Test
+        run: dotnet test KksSceneConv.sln -c Release
+
       - name: Build (self-contained + lite)
         shell: pwsh
         run: pwsh -File tools/build.ps1
