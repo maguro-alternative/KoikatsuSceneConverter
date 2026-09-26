@@ -19,6 +19,9 @@ jobs:
 
       - name: Test
         run: dotnet test KksSceneConv.sln -c Release
+        env:
+          # real-scene fixtures are committed; fail instead of skipping if they go missing
+          KKS_REQUIRE_REAL_SCENES: '1'
 
       - name: Build (self-contained + lite)
         shell: pwsh
