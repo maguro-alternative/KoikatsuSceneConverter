@@ -55,7 +55,6 @@ namespace KksSceneConv
             ["Overwrite the original files"] = "元のファイルに上書き保存",
             ["Overwrite {0} file(s) in place? The original KKS scenes will be lost and cannot be restored."] = "{0} 件のファイルを元の場所に上書き保存します。元の KKS シーンは失われ、元に戻せません。続行しますか？",
             ["Verify output"] = "出力を検証",
-            ["Verbose log"] = "詳細ログ",
             ["Analysis"] = "解析結果",
             ["▶  Convert"] = "▶  変換開始",
             ["Check only"] = "検証のみ",
