@@ -1,0 +1,10 @@
+bin/
+obj/
+dist/
+*.user
+*.suo
+.vs/
+ui-lang.txt
+# game data / scenes never go into the repo
+*.png
+!assets/*.png
