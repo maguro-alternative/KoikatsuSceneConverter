@@ -26,27 +26,14 @@
 コイカツサンシャインのキャラスタジオで作成されたシーンデータを無印のキャラスタジオで読めるように変換します。
 GUIアプリとして使えますが、CLI上で扱うこともできます。
 
-**変換で行うこと**
-
-| 項目 | 内容 |
-|---|---|
-| シーンバージョン | `1.1.x` → `1.0.4.2` に書き換え |
-| キャラカード | マーク `【KoiKatuCharaSun】` → `【KoiKatuChara】`。KK が読み飛ばす新しいブロックバージョン（Parameter 0.0.6 など）を KK が受け付ける番号に下げる |
-| KKS 専用フィールド | アイテムの `animePattern`、シーンの `shaderType` / `SkyInfo` を除去 |
-| Text オブジェクト | KK に存在しないため削除（子要素の個数も再計算） |
-| 背景 | `UserData/bg/x.png` のようなパスをファイル名のみに |
-| Timeline | KKSPE 由来の `owner="KKSPE"` を `KKPE` に変更 |
-
-それ以外（カメラ・ライト・BGM・環境・ExtensibleSaveFormat の末尾）は両ゲームで同一のため、バイト単位でそのままコピーします。
-
 ### ダウンロード
 
 [Releases](../../releases) から：
 
 | | 説明 |
 |---|---|
-| `KksSceneConv.exe`（自己完結版、約 66 MB） | **推奨**。解凍してそのまま実行。ランタイム不要 |
-| `KksSceneConv-lite.exe`（約 1 MB） | [.NET 8 デスクトップランタイム](https://dotnet.microsoft.com/download/dotnet/8.0) が必要 |
+| `KksSceneConv.exe`（約 66 MB） | **推奨**。解凍してそのままご利用可能です。 |
+| `KksSceneConv-lite.exe`（約 1 MB） | ご利用いただく場合、[.NET 8.0](https://dotnet.microsoft.com/download/dotnet/8.0) 以上が必要です。 |
 
 > 初回起動時に `ui-lang.txt` が exe の隣に作られます（ポータブル。レジストリには書きません）。
 
@@ -85,6 +72,19 @@ dotnet test KksSceneConv.sln                               # 単体テスト（�
 `dotnet test` は `tests/fixtures/real/` の実シーンでも「変換 → 再解析」を検証します。環境変数 `KKS_SCENES_DIR` でフォルダを指定すると、手元のシーンでも同じ検証ができます。CI では `KKS_REQUIRE_REAL_SCENES=1` を設定し、実シーンが見つからない場合はスキップではなく失敗にしています。
 
 [exapmle/kks2kk.py](exapmle/kks2kk.py) は移植元の Python 版リファレンス実装です。C# 版は同じ入力に対して同じバイト列を出力します。
+
+### 変換で行うこと
+
+| 項目 | 内容 |
+|---|---|
+| シーンバージョン | `1.1.x` → `1.0.4.2` に書き換え |
+| キャラカード | マーク `【KoiKatuCharaSun】` → `【KoiKatuChara】`。KK が読み飛ばす新しいブロックバージョン（Parameter 0.0.6 など）を KK が受け付ける番号に下げる |
+| KKS 専用フィールド | アイテムの `animePattern`、シーンの `shaderType` / `SkyInfo` を除去 |
+| Text オブジェクト | KK に存在しないため削除（子要素の個数も再計算） |
+| 背景 | `UserData/bg/x.png` のようなパスをファイル名のみに |
+| Timeline | KKSPE 由来の `owner="KKSPE"` を `KKPE` に変更 |
+
+それ以外（カメラ・ライト・BGM・環境・ExtensibleSaveFormat の末尾）は両ゲームで同一のため、バイト単位でそのままコピーします。
 
 ### 免責
 
