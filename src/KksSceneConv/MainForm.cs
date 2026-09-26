@@ -66,6 +66,11 @@ namespace KksSceneConv
         bool busy;
         bool closeAfterRun;
         int analyzeGen;  // bumped on every input change; stale analyses compare and bail out
+        // Output folder policy: default = same folder as the source (the _kk suffix already
+        // tells the files apart). Once the user picks a folder, or one was remembered from a
+        // previous session, it sticks and is no longer overwritten when the input changes.
+        bool outUserSet;
+        bool settingOut;  // true while the code (not the user) writes txtOut
 
         public MainForm(string[] preload)
         {
@@ -82,6 +87,9 @@ namespace KksSceneConv
             SetLogVisible(true);
             EnableDrop(this);
             UpdateModeUi();
+
+            string last = Settings.LoadLastOutputDir();
+            if (last != null) { SetOutText(last); outUserSet = true; }
 
             if (preload != null && preload.Length > 0)
                 Load += (s, e) => SetInputs(preload);
@@ -187,6 +195,8 @@ namespace KksSceneConv
             btnBrowseIn.Click += (s, e) => BrowseIn();
             btnBrowseOut.Click += (s, e) => BrowseOut();
             txtIn.Leave += (s, e) => { if (inputs.Count <= 1) { inputs.Clear(); if (txtIn.Text.Length > 0) SetInputs(new[] { txtIn.Text }); } };
+            txtOut.TextChanged += (s, e) => { if (!settingOut) outUserSet = true; };
+            txtOut.Leave += (s, e) => { if (outUserSet && Directory.Exists(txtOut.Text.Trim())) Settings.SaveLastOutputDir(txtOut.Text.Trim()); };
             btnRun.Click += (s, e) => Run(false);
             btnCheck.Click += (s, e) => Run(true);
             btnCancel.Click += (s, e) => { if (cts != null) cts.Cancel(); };
@@ -274,10 +284,19 @@ namespace KksSceneConv
             }
         }
 
+        void SetOutText(string dir)
+        {
+            settingOut = true;
+            try { txtOut.Text = dir; }
+            finally { settingOut = false; }
+        }
+
+        /// <summary>Default output = the source's own folder, unless the user already
+        /// chose (or a previous session remembered) a folder.</summary>
         void SetDefaultOut(string dir)
         {
-            if (string.IsNullOrEmpty(dir)) return;
-            txtOut.Text = Path.Combine(dir, "kk");
+            if (outUserSet || string.IsNullOrEmpty(dir)) return;
+            SetOutText(dir);
         }
 
         void BrowseIn()
@@ -304,7 +323,12 @@ namespace KksSceneConv
             using (var d = new FolderBrowserDialog { Description = L.T("Select the output folder"), UseDescriptionForTitle = true })
             {
                 if (Directory.Exists(txtOut.Text)) d.SelectedPath = txtOut.Text;
-                if (d.ShowDialog(this) == DialogResult.OK) txtOut.Text = d.SelectedPath;
+                if (d.ShowDialog(this) == DialogResult.OK)
+                {
+                    SetOutText(d.SelectedPath);
+                    outUserSet = true;
+                    Settings.SaveLastOutputDir(d.SelectedPath);
+                }
             }
         }
 
@@ -543,6 +567,9 @@ namespace KksSceneConv
                     + ", " + skipped + " " + L.T("skipped") + ", " + failed + " " + L.T(checkOnly ? "ng" : "failed");
                 lblStatus.Text = summary;
                 AppendLog("=== " + summary + " ===");
+                // A folder that was actually converted into is worth remembering, but only
+                // when the user chose it; the per-source default must not stick.
+                if (!checkOnly && ok > 0 && outUserSet) Settings.SaveLastOutputDir(txtOut.Text.Trim());
                 if (closeAfterRun) Close();
             }
         }

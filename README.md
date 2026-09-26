@@ -35,13 +35,13 @@ GUIアプリとして使えますが、CLI上で扱うこともできます。
 | `KksSceneConv.exe`（約 66 MB） | **推奨**。解凍してそのままご利用可能です。 |
 | `KksSceneConv-lite.exe`（約 1 MB） | ご利用いただく場合、[.NET 8.0](https://dotnet.microsoft.com/download/dotnet/8.0) 以上が必要です。 |
 
-> 初回起動時に `ui-lang.txt` が exe の隣に作られます（ポータブル。レジストリには書きません）。
+> 起動時や出力先の選択時に `ui-lang.txt` と `last-output-dir.txt` が exe の隣に作られます（ポータブル。レジストリには書きません）。
 
 ### 使い方（GUI）
 
 1. シーン（`.png`）、複数のシーン、またはフォルダを**ウィンドウにドロップ**（または「参照…」）。exe のアイコンにドロップしても開けます
 2. ドロップした時点で解析結果が表示されます（バージョン、オブジェクト数、削除される Text の数、書き換えられるカードブロック、Timeline の変更）
-3. 出力先を確認（既定は `元フォルダ\kk`、ファイル名は `元の名前_kk.png`）
+3. 出力先を確認（既定は元ファイルと同じフォルダ、ファイル名は `元の名前_kk.png`）。「参照…」で一度選んだ出力先は次回以降も記憶され、入力を選び直しても変わりません
 4. **▶ 変換開始**
 
 「検証のみ」は変換せずに構造を解析し、末尾マーカーまで正しく読めるかを確認します。KK のシーンにも使えるので、変換結果の確認にも使えます。「出力を検証」をオンにしておくと、変換後に出力を自動で再解析します。
@@ -115,7 +115,7 @@ Grab a build from [Releases](../../releases): the **self-contained** exe (≈66 
 
 ### Usage
 
-GUI: drop a scene, several scenes or a folder into the window (or onto the exe icon), read the analysis, confirm the output folder (default `<source folder>\kk`, files named `<name>_kk.png`) and press **▶ Convert**. **Check only** parses without writing and works on KK scenes too.
+GUI: drop a scene, several scenes or a folder into the window (or onto the exe icon), read the analysis, confirm the output folder (default: the source's own folder, files named `<name>_kk.png`; a folder picked with **Browse…** is remembered for later sessions and is not reset when the input changes) and press **▶ Convert**. **Check only** parses without writing and works on KK scenes too.
 
 CLI:
 
