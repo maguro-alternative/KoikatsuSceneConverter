@@ -19,4 +19,8 @@
     <InvariantGlobalization>false</InvariantGlobalization>
   </PropertyGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="KksSceneConv.Tests" />
+  </ItemGroup>
+
 </Project>

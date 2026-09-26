@@ -76,9 +76,12 @@ KksSceneConv.exe help
 ```powershell
 pwsh -File tools/build.ps1                                 # dist\self-contained と dist\lite を生成
 pwsh -File tools/selftest.ps1 -Scene "KKS のシーン.png"   # 変換 → 再解析 → Python 版と一致するか比較
+dotnet test KksSceneConv.sln                               # 単体テスト（合成シーンを使うためシーン不要）
 ```
 
-.NET 8 SDK 以降が必要です。**シーンはご自身で用意してください**。リポジトリにゲーム素材やシーンは含まれません。
+.NET 8 SDK 以降が必要です。**シーンはご自身で用意してください**。リポジトリにゲーム素材は含まれません（例外はテスト用の実シーン2件 `tests/fixtures/real/*.png` のみ）。
+
+`dotnet test` は `tests/fixtures/real/` の実シーンでも「変換 → 再解析」を検証します。環境変数 `KKS_SCENES_DIR` でフォルダを指定すると、手元のシーンでも同じ検証ができます。CI では `KKS_REQUIRE_REAL_SCENES=1` を設定し、実シーンが見つからない場合はスキップではなく失敗にしています。
 
 [exapmle/kks2kk.py](exapmle/kks2kk.py) は移植元の Python 版リファレンス実装です。C# 版は同じ入力に対して同じバイト列を出力します。
 
@@ -129,9 +132,12 @@ Exit codes: 0 ok, 1 failed / NG, 2 usage. The exe is a GUI-subsystem binary, so 
 ```powershell
 pwsh -File tools/build.ps1
 pwsh -File tools/selftest.ps1 -Scene "your KKS scene.png"
+dotnet test KksSceneConv.sln   # unit tests (synthetic scenes, no game data needed)
 ```
 
-Requires the .NET 8 SDK or newer. **Bring your own scenes**; the repository contains no game assets. [exapmle/kks2kk.py](exapmle/kks2kk.py) is the Python reference the C# port was verified against (byte-identical output).
+Requires the .NET 8 SDK or newer. **Bring your own scenes**; the repository contains no game assets apart from two test scenes in `tests/fixtures/real/`. [exapmle/kks2kk.py](exapmle/kks2kk.py) is the Python reference the C# port was verified against (byte-identical output).
+
+`dotnet test` also round-trips the real scenes in `tests/fixtures/real/`; point `KKS_SCENES_DIR` at a folder to run the same checks on your own scenes. CI sets `KKS_REQUIRE_REAL_SCENES=1`, so missing fixtures fail the build instead of being skipped.
 
 ### Disclaimer
 
