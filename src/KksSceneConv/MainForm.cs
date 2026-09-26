@@ -141,7 +141,7 @@ namespace KksSceneConv
             Loc(btnBrowseOut, "Browse…");
             var opts = new FlowLayoutPanel { AutoSize = true, Dock = DockStyle.Fill, WrapContents = true };
             opts.Controls.Add(chkRecurse); opts.Controls.Add(chkOverwrite); opts.Controls.Add(chkVerify); opts.Controls.Add(chkVerbose);
-            Loc(chkRecurse, "Include subfolders"); Loc(chkOverwrite, "Overwrite existing");
+            Loc(chkRecurse, "Include subfolders"); Loc(chkOverwrite, "Overwrite the original files");
             Loc(chkVerify, "Verify output"); Loc(chkVerbose, "Verbose log");
             tout.Controls.Add(opts, 0, 1); tout.SetColumnSpan(opts, 2);
             grpOut.Controls.Add(tout);
@@ -194,6 +194,7 @@ namespace KksSceneConv
             };
             rbFile.CheckedChanged += (s, e) => UpdateModeUi();
             rbDir.CheckedChanged += (s, e) => UpdateModeUi();
+            chkOverwrite.CheckedChanged += (s, e) => UpdateOverwriteUi();
             btnBrowseIn.Click += (s, e) => BrowseIn();
             btnBrowseOut.Click += (s, e) => BrowseOut();
             txtIn.Leave += (s, e) => { if (inputs.Count <= 1) { inputs.Clear(); if (txtIn.Text.Length > 0) SetInputs(new[] { txtIn.Text }); } };
@@ -233,6 +234,15 @@ namespace KksSceneConv
         void UpdateModeUi()
         {
             chkRecurse.Enabled = rbDir.Checked;
+        }
+
+        /// <summary>"Overwrite the original files": the output is the input itself, so the
+        /// output field and its Browse… button are disabled and just mirror the input.</summary>
+        void UpdateOverwriteUi()
+        {
+            bool ow = chkOverwrite.Checked;
+            txtOut.Enabled = btnBrowseOut.Enabled = !ow && !busy;
+            RefreshOutDefault();
         }
 
         // ---- drag & drop --------------------------------------------------
@@ -318,6 +328,12 @@ namespace KksSceneConv
             else if (inputs.Count > 0) srcDir = Path.GetDirectoryName(inputs[0]);
             else if (File.Exists(txtIn.Text)) srcDir = Path.GetDirectoryName(txtIn.Text);
             if (string.IsNullOrEmpty(srcDir)) return;
+            if (chkOverwrite.Checked)
+            {
+                // In-place: show where the files will be written, which is the input itself.
+                SetOutText(SingleFileMode ? txtIn.Text : srcDir);
+                return;
+            }
             string dir = outDirOverride ?? srcDir;
             if (SingleFileMode)
                 SetOutText(Path.Combine(dir, Path.GetFileNameWithoutExtension(txtIn.Text) + Suffix + ".png"));
@@ -496,14 +512,23 @@ namespace KksSceneConv
         List<KeyValuePair<string, string>> BuildJobs()
         {
             string outDir = txtOut.Text.Trim();
+            bool inPlace = chkOverwrite.Checked;
             var jobs = new List<KeyValuePair<string, string>>();
             if (rbDir.Checked)
             {
                 if (!Directory.Exists(txtIn.Text)) return jobs;
-                return Jobs.Build(txtIn.Text, outDir, Suffix, chkRecurse.Checked);
+                jobs = Jobs.Build(txtIn.Text, inPlace ? txtIn.Text : outDir, Suffix, chkRecurse.Checked);
+                if (inPlace)
+                    for (int i = 0; i < jobs.Count; i++) jobs[i] = new KeyValuePair<string, string>(jobs[i].Key, jobs[i].Key);
+                return jobs;
             }
             var files = inputs.Count > 0 ? new List<string>(inputs) : new List<string>();
             if (files.Count == 0 && File.Exists(txtIn.Text)) files.Add(txtIn.Text);
+            if (inPlace)
+            {
+                foreach (var f in files) jobs.Add(new KeyValuePair<string, string>(f, f));
+                return jobs;
+            }
             if (SingleFileMode && files.Count == 1 && !Directory.Exists(outDir) && !outDir.EndsWith("\\") && !outDir.EndsWith("/"))
             {
                 // The field holds the output file path itself.
@@ -535,7 +560,16 @@ namespace KksSceneConv
                 lblStatus.Text = L.T(rbDir.Checked && Directory.Exists(txtIn.Text) ? "No .png scenes found." : "No input selected.");
                 return;
             }
-            if (!checkOnly)
+            bool overwrite = chkOverwrite.Checked, verify = chkVerify.Checked, verbose = chkVerbose.Checked;
+            if (!checkOnly && overwrite)
+            {
+                // Irreversible: the KKS originals are replaced by the KK versions.
+                var r = MessageBox.Show(this,
+                    string.Format(L.T("Overwrite {0} file(s) in place? The original KKS scenes will be lost and cannot be restored."), jobs.Count),
+                    Text, MessageBoxButtons.YesNo, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button2);
+                if (r != DialogResult.Yes) return;
+            }
+            else if (!checkOnly)
             {
                 foreach (var job in jobs)
                 {
@@ -547,7 +581,6 @@ namespace KksSceneConv
                     }
                 }
             }
-            bool overwrite = chkOverwrite.Checked, verify = chkVerify.Checked, verbose = chkVerbose.Checked;
             SetBusy(true);
             pb.Maximum = jobs.Count; pb.Value = 0;
             cts = new CancellationTokenSource();
@@ -578,12 +611,6 @@ namespace KksSceneConv
                             }
                             else
                             {
-                                if (File.Exists(dst) && !overwrite)
-                                {
-                                    skipped++;
-                                    AppendLogBg("SKIP " + name + " : " + L.T("exists, skipped (enable Overwrite to replace)"));
-                                }
-                                else
                                 {
                                     var data = File.ReadAllBytes(src);
                                     var t = new Transcoder(data, verbose ? (Action<string>)AppendLogBg : null);
@@ -662,8 +689,9 @@ namespace KksSceneConv
         void SetBusy(bool b)
         {
             busy = b;
-            btnRun.Enabled = btnCheck.Enabled = btnBrowseIn.Enabled = btnBrowseOut.Enabled = !b;
-            rbFile.Enabled = rbDir.Enabled = txtIn.Enabled = txtOut.Enabled = !b;
+            btnRun.Enabled = btnCheck.Enabled = btnBrowseIn.Enabled = !b;
+            rbFile.Enabled = rbDir.Enabled = txtIn.Enabled = !b;
+            txtOut.Enabled = btnBrowseOut.Enabled = !b && !chkOverwrite.Checked;
             chkOverwrite.Enabled = chkVerify.Enabled = chkVerbose.Enabled = !b;
             chkRecurse.Enabled = !b && rbDir.Checked;
             btnCancel.Enabled = b;
