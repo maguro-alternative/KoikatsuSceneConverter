@@ -49,7 +49,7 @@ namespace KksSceneConv
             ["Single scene file"] = "シーン1枚",
             ["Whole folder"] = "フォルダごと",
             ["Browse…"] = "参照…",
-            ["Drop a KKS Studio scene (.png), several scenes, or a folder here"] = "ここに KKS Studio のシーン (.png)、複数のシーン、またはフォルダをドロップ",
+            ["Drop a KKS Studio scene (.png), several scenes, or a folder here"] = "サンシャイン製のシーン(複数可)、またはフォルダをドロップ",
             ["Output"] = "出力",
             ["Include subfolders"] = "サブフォルダを含む",
             ["Overwrite existing"] = "同名を上書き",
