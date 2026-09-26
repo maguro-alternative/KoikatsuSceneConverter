@@ -63,7 +63,7 @@ KKS の Studio シーン（`.png`）を KK の CharaStudio で読めるように
 ```bat
 KksSceneConv.exe convert in.png [out.png] [-v]     :: 変換（既定の出力名は in_kk.png）
 KksSceneConv.exe check   scene.png                 :: 解析のみ（KK / KKS どちらも可）
-KksSceneConv.exe batch   D:\scenes D:\out [-r]     :: フォルダ内の *.png を一括変換（-r: サブフォルダも）
+KksSceneConv.exe batch   D:\scenes D:\out [-r]     :: フォルダ内の *.png を一括変換（-r: サブフォルダも。シーン以外の画像やカードはスキップ）
 KksSceneConv.exe help
 ```
 
@@ -121,7 +121,7 @@ CLI:
 ```bat
 KksSceneConv.exe convert in.png [out.png] [-v]
 KksSceneConv.exe check   scene.png
-KksSceneConv.exe batch   D:\scenes D:\out [-r]
+KksSceneConv.exe batch   D:\scenes D:\out [-r]   :: non-scene .png files (pictures, cards) are skipped
 KksSceneConv.exe help
 ```
 

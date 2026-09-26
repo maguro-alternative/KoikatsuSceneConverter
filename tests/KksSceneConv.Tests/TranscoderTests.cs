@@ -138,12 +138,84 @@ namespace KksSceneConv.Tests
         }
 
         [Fact]
-        public void Non_png_input_is_rejected()
+        public void Non_png_input_is_not_a_scene()
         {
             var data = Build(FullKks());
             data[1] = (byte)'X';
 
-            Assert.Throws<InvalidDataException>(() => new Transcoder(data).Scene(true));
+            var e = Assert.Throws<NotASceneException>(() => new Transcoder(data).Scene(true));
+            Assert.Contains("not a PNG", e.Message);
+        }
+
+        [Fact]
+        public void Card_without_a_picture_is_named_as_such()
+        {
+            var w = new Writer();
+            w.I32(100);
+            w.Str("【KoiKatuCharaSun】");
+            w.Raw(new byte[64]);
+
+            var e = Assert.Throws<NotASceneException>(() => new Transcoder(w.ToArray()).Scene(false));
+            Assert.Contains("character card", e.Message);
+        }
+
+        [Theory]
+        [InlineData(0)]
+        [InlineData(7)]
+        public void Tiny_file_is_not_a_scene(int size)
+        {
+            Assert.Throws<NotASceneException>(() => new Transcoder(new byte[size]).Scene(false));
+        }
+
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void Plain_picture_is_not_a_scene(bool requireKks)
+        {
+            var data = Png().ToArray();
+
+            var e = Assert.Throws<NotASceneException>(() => new Transcoder(data).Scene(requireKks));
+            Assert.Contains("plain picture", e.Message);
+        }
+
+        [Theory]
+        [InlineData("【KoiKatuCharaSun】", "character card")]
+        [InlineData("【KoiKatuChara】", "character card")]
+        [InlineData("【KoiKatuClothes】", "coordinate card")]
+        public void Cards_are_not_scenes_and_are_named_as_such(string mark, string expected)
+        {
+            var w = Png();
+            w.I32(100);  // productNo
+            w.Str(mark);
+            w.Str("0.0.0");
+            w.Raw(new byte[64]);
+
+            var e = Assert.Throws<NotASceneException>(() => new Transcoder(w.ToArray()).Scene(false));
+            Assert.Contains(expected, e.Message);
+        }
+
+        [Theory]
+        [InlineData("")]
+        [InlineData("1")]
+        [InlineData("1.x")]
+        [InlineData("1.2.3.4.5")]
+        [InlineData("hello")]
+        public void Data_after_the_png_without_a_version_header_is_not_a_scene(string header)
+        {
+            var w = Png();
+            w.Str(header);
+            w.Raw(new byte[16]);
+
+            Assert.Throws<NotASceneException>(() => new Transcoder(w.ToArray()).Scene(false));
+        }
+
+        [Fact]
+        public void Random_trailing_bytes_are_not_a_scene()
+        {
+            var w = Png();
+            w.Raw(new byte[] { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x01 });  // absurd 7-bit length
+
+            Assert.Throws<NotASceneException>(() => new Transcoder(w.ToArray()).Scene(false));
         }
 
         [Fact]

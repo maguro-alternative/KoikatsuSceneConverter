@@ -97,6 +97,7 @@ namespace KksSceneConv
             Cli.W("  KksSceneConv.exe convert <in.png> [<out.png>] [-v] convert (default out: <in>_kk.png)");
             Cli.W("  KksSceneConv.exe check <scene.png>                 parse only, print structure (KK or KKS)");
             Cli.W("  KksSceneConv.exe batch <dir> [<outdir>] [-r] [-v]  convert every *.png (-r: subfolders)");
+            Cli.W("                                                     non-scene .png files (pictures, cards) are skipped");
             Cli.W("  KksSceneConv.exe help");
             Cli.W("");
             Cli.W("Exit codes: 0 ok, 1 failed / NG, 2 usage.");
@@ -144,6 +145,7 @@ namespace KksSceneConv
                             foreach (var job in Jobs.Build(dir, outdir, "_kk", recurse))
                             {
                                 try { ConvertFile(job.Key, job.Value, log); }
+                                catch (NotASceneException e) { Cli.W("SKIP " + Path.GetFileName(job.Key) + ": " + e.Message); }
                                 catch (Exception e) { failed++; Cli.W("FAILED " + Path.GetFileName(job.Key) + ": " + e.Message); }
                             }
                             return failed == 0 ? 0 : 1;

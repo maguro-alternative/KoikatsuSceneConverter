@@ -77,14 +77,26 @@ namespace KksSceneConv.Tests
                 "No real scenes in " + (RealScenes.Dir ?? "(unknown)") + " but " + RealScenes.RequireEnvVar + "=1");
         }
 
-        /// <summary>Converts <paramref name="name"/>; returns null for scenes that are
-        /// already KK (after checking they are rejected as such).</summary>
+        /// <summary>Parses <paramref name="name"/> without converting; null when the file
+        /// is not a Studio scene at all (plain pictures, cards). A scene library pointed
+        /// at by KKS_SCENES_DIR often has those mixed in; the committed fixtures must not,
+        /// so with KKS_REQUIRE_REAL_SCENES=1 a non-scene fails the test instead.</summary>
+        static Transcoder ParseOrNull(string name)
+        {
+            var t = new Transcoder(RealScenes.Read(name));
+            try { t.Scene(false); }
+            catch (NotASceneException) when (!RealScenes.Required) { return null; }
+            return t;
+        }
+
+        /// <summary>Converts <paramref name="name"/>; returns null for non-scenes and for
+        /// scenes that are already KK (after checking they are rejected as such).</summary>
         static byte[] ConvertOrNull(string name, out Transcoder t)
         {
             var src = RealScenes.Read(name);
             t = new Transcoder(src);
-            var probe = new Transcoder(src);
-            probe.Scene(false);
+            var probe = ParseOrNull(name);
+            if (probe == null) return null;
             if (!probe.IsKks)
             {
                 Assert.Throws<AlreadyKkException>(() => new Transcoder(src).Scene(true));
@@ -97,8 +109,8 @@ namespace KksSceneConv.Tests
         [MemberData(nameof(RealScenes.Data), MemberType = typeof(RealScenes))]
         public void Source_parses_cleanly_to_the_tail_marker(string name)
         {
-            var t = new Transcoder(RealScenes.Read(name));
-            t.Scene(false);
+            var t = ParseOrNull(name);
+            if (t == null) return;
 
             Assert.Equal(Transcoder.TailMark, t.TailMarkFound);
         }
