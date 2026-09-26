@@ -155,6 +155,13 @@ namespace KksSceneConv
         public AlreadyKkException(string msg) : base(msg) { }
     }
 
+    /// <summary>Thrown when the file is not a Studio scene at all (a plain picture, a
+    /// character / coordinate card, ...). Batch conversion skips these instead of failing.</summary>
+    public sealed class NotASceneException : Exception
+    {
+        public NotASceneException(string msg) : base("not a Studio scene: " + msg) { }
+    }
+
     public sealed class SceneStats
     {
         public int Chars, Items, TextsDropped;
@@ -476,10 +483,11 @@ namespace KksSceneConv
         public byte[] Scene(bool requireKks = true)
         {
             // --- PNG ---
+            if (r.Remaining < 8) throw new NotASceneException("file too small (" + r.Remaining + " bytes)");
             var sig = CRaw(8);
             if (!(sig[0] == 0x89 && sig[1] == (byte)'P' && sig[2] == (byte)'N' && sig[3] == (byte)'G'
                   && sig[4] == 0x0D && sig[5] == 0x0A && sig[6] == 0x1A && sig[7] == 0x0A))
-                throw new InvalidDataException("not a PNG-prefixed scene file");
+                throw new NotASceneException(DescribeNonScene(r.B, 0) ?? "not a PNG file");  // cards may omit the picture
             while (true)
             {
                 if (r.P + 8 > r.B.Length) throw new EndOfStreamException("truncated PNG chunk at " + r.P);
@@ -490,7 +498,7 @@ namespace KksSceneConv
             }
             PngLength = r.P;
             // --- header ---
-            string srcVerStr = r.Str();
+            string srcVerStr = ReadSceneVersion();
             srcVer = new Ver(srcVerStr);
             SrcVersion = srcVerStr;
             IsKks = srcVer >= new Ver("1.1.0.0");
@@ -581,6 +589,52 @@ namespace KksSceneConv
             }
             w.Raw(tail);
             return w.ToArray();
+        }
+
+        /// <summary>The scene version string that follows the PNG. Anything else means
+        /// the file is not a Studio scene; say what it looks like instead.</summary>
+        string ReadSceneVersion()
+        {
+            if (r.Remaining == 0)
+                throw new NotASceneException("nothing follows the PNG image (a plain picture)");
+            int start = r.P;
+            string v = null;
+            try { v = r.Str(); }
+            catch (EndOfStreamException) { }
+            catch (InvalidDataException) { }
+            if (v != null && IsVersionString(v)) return v;
+            throw new NotASceneException(DescribeNonScene(r.B, start) ?? "the data after the PNG image is not a scene header");
+        }
+
+        /// <summary>"1.1.2.1"-style: 2 to 4 dot-separated numbers.</summary>
+        static bool IsVersionString(string s)
+        {
+            var parts = s.Split('.');
+            if (parts.Length < 2 || parts.Length > 4) return false;
+            foreach (var p in parts)
+            {
+                if (p.Length == 0 || p.Length > 9) return false;
+                foreach (char ch in p) if (ch < '0' || ch > '9') return false;
+            }
+            return true;
+        }
+
+        /// <summary>Character and coordinate cards store int32 productNo + a mark string,
+        /// usually after a PNG picture but sometimes without one. Returns what the data at
+        /// <paramref name="start"/> looks like, or null when it is not recognised.</summary>
+        static string DescribeNonScene(byte[] data, int start)
+        {
+            try
+            {
+                var p = new Reader(data) { P = start };
+                p.I32();  // productNo
+                string mark = p.Str();
+                if (mark.StartsWith("【KoiKatuChara", StringComparison.Ordinal)) return "this is a character card (" + mark + ")";
+                if (mark.StartsWith("【KoiKatuClothes", StringComparison.Ordinal)) return "this is a coordinate card (" + mark + ")";
+            }
+            catch (EndOfStreamException) { }
+            catch (InvalidDataException) { }
+            return null;
         }
 
         // ---- patches -----------------------------------------------------

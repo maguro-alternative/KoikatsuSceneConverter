@@ -373,6 +373,12 @@ namespace KksSceneConv
                 if (chkVerbose.Checked) foreach (var l in lines) AppendLog(l);
                 lblStatus.Text = L.T("Ready. Drop a scene (or click Browse…), then press ▶ Convert.");
             }
+            catch (NotASceneException e)
+            {
+                if (gen != analyzeGen || IsDisposed) return;
+                lblInfo.Text = L.T("This file is not a Studio scene.") + Environment.NewLine + e.Message;
+                lblStatus.Text = L.T("Not a Studio scene") + ": " + Path.GetFileName(path);
+            }
             catch (Exception e)
             {
                 if (gen != analyzeGen || IsDisposed) return;
@@ -507,6 +513,12 @@ namespace KksSceneConv
                                         + (t.Stats.TimelineRenames.Count > 0 ? " | timeline: " + string.Join(", ", t.Stats.TimelineRenames) : ""));
                                 }
                             }
+                        }
+                        catch (NotASceneException e)
+                        {
+                            // plain pictures / chara cards mixed into a scene folder are not errors
+                            skipped++;
+                            AppendLogBg("SKIP " + name + " : " + L.T("not a Studio scene, skipped") + " (" + e.Message + ")");
                         }
                         catch (Exception e)
                         {

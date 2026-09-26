@@ -37,6 +37,16 @@ namespace KksSceneConv.Tests
             public byte[] KkEx;
         }
 
+        /// <summary>A writer holding just a minimal PNG (signature + IEND); append
+        /// whatever should follow the picture.</summary>
+        public static Writer Png()
+        {
+            var w = new Writer();
+            w.Raw(PngSignature);
+            w.Raw(IendChunk);
+            return w;
+        }
+
         public static byte[] Build(Options o)
         {
             var w = new Writer();
