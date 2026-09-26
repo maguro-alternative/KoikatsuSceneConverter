@@ -164,10 +164,30 @@ namespace KksSceneConv
             var data = File.ReadAllBytes(src);
             var t = new Transcoder(data, log);
             var outp = t.Scene(true);
-            Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(dst)));
-            File.WriteAllBytes(dst, outp);
+            WriteFileAtomic(dst, outp);
             Cli.W(Transcoder.SummaryLine(Path.GetFileName(src), Path.GetFileName(dst), data.Length, outp.Length, t.Stats));
             return outp;
+        }
+
+        /// <summary>Write to a temp file, then rename over <paramref name="path"/>, so an
+        /// interrupted write never leaves a truncated scene behind.</summary>
+        public static void WriteFileAtomic(string path, byte[] data)
+        {
+            string full = Path.GetFullPath(path);
+            Directory.CreateDirectory(Path.GetDirectoryName(full));
+            string tmp = full + ".tmp";
+            try
+            {
+                File.WriteAllBytes(tmp, data);
+                File.Move(tmp, full, true);
+            }
+            catch
+            {
+                try { File.Delete(tmp); }
+                catch (IOException) { }
+                catch (UnauthorizedAccessException) { }
+                throw;
+            }
         }
 
         /// <summary>Parse a KK or KKS scene without writing; prove the stream stays in
@@ -198,14 +218,14 @@ namespace KksSceneConv
             string outFull = Path.GetFullPath(outdir).TrimEnd('\\', '/');
             bool outInside = outFull.Length > dirFull.Length
                 && outFull.StartsWith(dirFull + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
-            string skipTail = suffix.Length > 0 ? (suffix + ".png").ToLowerInvariant() : null;
+            string skipTail = suffix.Length > 0 ? suffix + ".png" : null;
             var files = new List<string>(Directory.GetFiles(dirFull, "*.png", recurse ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly));
             files.Sort(StringComparer.OrdinalIgnoreCase);
             foreach (var f in files)
             {
                 string name = Path.GetFileName(f);
                 if (!name.EndsWith(".png", StringComparison.OrdinalIgnoreCase)) continue;
-                if (skipTail != null && name.ToLowerInvariant().EndsWith(skipTail)) continue;
+                if (skipTail != null && name.EndsWith(skipTail, StringComparison.OrdinalIgnoreCase)) continue;
                 if (outInside && f.StartsWith(outFull + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)) continue;
                 string rel = Path.GetRelativePath(dirFull, Path.GetDirectoryName(f));
                 string dstDir = rel == "." ? outFull : Path.Combine(outFull, rel);

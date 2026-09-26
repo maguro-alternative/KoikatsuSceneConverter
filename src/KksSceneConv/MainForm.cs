@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -63,6 +64,8 @@ namespace KksSceneConv
         readonly List<string> inputs = new List<string>();  // explicit file list (multi-drop)
         CancellationTokenSource cts;
         bool busy;
+        bool closeAfterRun;
+        int analyzeGen;  // bumped on every input change; stale analyses compare and bail out
 
         public MainForm(string[] preload)
         {
@@ -235,6 +238,7 @@ namespace KksSceneConv
         // ---- input handling -----------------------------------------------
         void SetInputs(string[] paths)
         {
+            analyzeGen++;
             inputs.Clear();
             var files = new List<string>();
             string dir = null;
@@ -265,7 +269,7 @@ namespace KksSceneConv
             {
                 txtIn.Text = files.Count + " " + L.T("files selected");
                 SetDefaultOut(Path.GetDirectoryName(files[0]));
-                pic.Image = null;
+                SetPreview(null);
                 lblInfo.Text = string.Join(Environment.NewLine, files.ConvertAll(Path.GetFileName));
             }
         }
@@ -317,9 +321,16 @@ namespace KksSceneConv
         }
 
         // ---- analysis -----------------------------------------------------
+        void SetPreview(Image img)
+        {
+            var old = pic.Image;
+            pic.Image = img;
+            if (old != null) old.Dispose();
+        }
+
         void AnalyzeFolder(string dir)
         {
-            pic.Image = null;
+            SetPreview(null);
             try
             {
                 var jobs = Jobs.Build(dir, txtOut.Text, txtSuffix.Text, chkRecurse.Checked);
@@ -330,8 +341,9 @@ namespace KksSceneConv
 
         async void AnalyzeFileAsync(string path)
         {
+            int gen = ++analyzeGen;
             lblStatus.Text = L.T("Analyzing…");
-            pic.Image = null;
+            SetPreview(null);
             lblInfo.Text = "";
             try
             {
@@ -344,14 +356,18 @@ namespace KksSceneConv
                     t = new Transcoder(data, s => lines.Add(s));
                     t.Scene(false);
                 });
+                if (gen != analyzeGen || IsDisposed) return;  // a newer input replaced this one
                 if (t.PngLength > 0)
                 {
                     try
                     {
                         using (var ms = new MemoryStream(data, 0, t.PngLength))
-                            pic.Image = new Bitmap(Image.FromStream(ms));
+                        using (var src = Image.FromStream(ms))
+                            SetPreview(new Bitmap(src));
                     }
-                    catch { pic.Image = null; }
+                    // thumbnail is not a decodable image
+                    catch (ArgumentException) { SetPreview(null); }
+                    catch (ExternalException) { SetPreview(null); }
                 }
                 lblInfo.Text = Describe(t);
                 if (chkVerbose.Checked) foreach (var l in lines) AppendLog(l);
@@ -359,6 +375,7 @@ namespace KksSceneConv
             }
             catch (Exception e)
             {
+                if (gen != analyzeGen || IsDisposed) return;
                 lblInfo.Text = L.T("Could not analyze") + ": " + e.Message;
                 lblStatus.Text = L.T("Could not analyze") + ": " + Path.GetFileName(path);
             }
@@ -417,7 +434,13 @@ namespace KksSceneConv
                 MessageBox.Show(this, L.T("Output folder is required."), Text, MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
-            var jobs = BuildJobs();
+            List<KeyValuePair<string, string>> jobs;
+            try { jobs = BuildJobs(); }
+            catch (Exception e)  // async void: anything escaping here would bypass the UI entirely
+            {
+                lblStatus.Text = L.T("Could not list input files") + ": " + e.Message;
+                return;
+            }
             if (jobs.Count == 0)
             {
                 lblStatus.Text = L.T(rbDir.Checked && Directory.Exists(txtIn.Text) ? "No .png scenes found." : "No input selected.");
@@ -478,8 +501,7 @@ namespace KksSceneConv
                                         if (c.TailMarkFound != Transcoder.TailMark)
                                             throw new InvalidDataException(L.T("verify NG: output could not be re-parsed"));
                                     }
-                                    Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(dst)));
-                                    File.WriteAllBytes(dst, outp);
+                                    Program.WriteFileAtomic(dst, outp);
                                     ok++;
                                     AppendLogBg("OK   " + Transcoder.SummaryLine(name, Path.GetFileName(dst), data.Length, outp.Length, t.Stats)
                                         + (t.Stats.TimelineRenames.Count > 0 ? " | timeline: " + string.Join(", ", t.Stats.TimelineRenames) : ""));
@@ -509,7 +531,22 @@ namespace KksSceneConv
                     + ", " + skipped + " " + L.T("skipped") + ", " + failed + " " + L.T(checkOnly ? "ng" : "failed");
                 lblStatus.Text = summary;
                 AppendLog("=== " + summary + " ===");
+                if (closeAfterRun) Close();
             }
+        }
+
+        protected override void OnFormClosing(FormClosingEventArgs e)
+        {
+            if (busy)
+            {
+                // Let the file in progress finish; Run's finally closes the form afterwards.
+                // Exiting now would kill the worker thread mid-write.
+                e.Cancel = true;
+                closeAfterRun = true;
+                if (cts != null) cts.Cancel();
+                lblStatus.Text = L.T("Cancelling…");
+            }
+            base.OnFormClosing(e);
         }
 
         void SetBusy(bool b)
