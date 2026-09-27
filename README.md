@@ -91,57 +91,71 @@ dotnet test KksSceneConv.sln                               # 単体テスト（�
 
 ## English
 
-### What it is
+### Overview
 
-Converts KKS Studio scenes (`.png`) into the layout KK CharaStudio expects. GUI and CLI in a single exe.
-
-**What the conversion does**
-
-- Scene version `1.1.x` → `1.0.4.2`
-- Embedded chara cards: mark `【KoiKatuCharaSun】` → `【KoiKatuChara】`; BlockHeader versions newer than KK knows (e.g. Parameter 0.0.6) are lowered so KK does not skip the block (name / personality would vanish otherwise)
-- KKS-only fields removed: item `animePattern`, scene `shaderType` / `SkyInfo`
-- Text objects (kind 7) removed; child counts recomputed
-- Background path (`UserData/bg/x.png`) reduced to a file name
-- Timeline `owner="KKSPE"` renamed to `KKPE`
-
-Everything else is byte-identical between the two games and copied verbatim.
+Converts scene data created in Koikatsu Sunshine's CharaStudio so that the original Koikatsu's CharaStudio can load it.
+It works as a GUI app, and can also be used from the command line.
 
 ### Download
 
-Grab a build from [Releases](../../releases): the **self-contained** exe (≈66 MB, nothing to install) or the **lite** exe (≈1 MB, needs the [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0)).
+From [Releases](../../releases):
 
-### Usage
+| | Notes |
+|---|---|
+| `KksSceneConv.exe` (≈66 MB) | **Recommended.** Unzip and run; nothing else to install. |
+| `KksSceneConv-lite.exe` (≈1 MB) | Requires [.NET 8.0](https://dotnet.microsoft.com/download/dotnet/8.0) or newer. |
+
+> `ui-lang.txt` and `last-output-dir.txt` are created next to the exe on startup / when an output folder is chosen (portable; nothing is written to the registry).
+
+### Usage (GUI)
 
 ![GUI (English)](assets/gui-en.png)
 
-GUI: drop a scene, several scenes or a folder into the window (or onto the exe icon), read the analysis, confirm the output (for a single scene the field holds the output file path, `…\scene\kks\#01.png` → `…\scene\kks\#01_kk.png`; for a folder or several files it holds the output folder; a folder picked with **Browse…** is remembered for later sessions and is not reset when the input changes) and press **▶ Convert**. With **Overwrite the original files** checked the output field is disabled and the KKS scenes themselves are rewritten in place (irreversible; a confirmation with the file count is shown first). **Check only** parses without writing and works on KK scenes too.
+1. Drop a Sunshine scene file or a folder onto the window, or pick one with **Browse…** (dropping onto the exe icon also opens it).
+2. Check the output. You can change it with **Browse…** or by typing a path directly.
+3. Press **▶ Convert**.
 
-CLI:
+**Check only** parses the file without converting and confirms it is in a convertible format. With **Verify output** on, the output is re-parsed automatically after conversion.
+
+### Usage (CLI)
 
 ```bat
-KksSceneConv.exe convert in.png [out.png] [-v]
-KksSceneConv.exe check   scene.png
-KksSceneConv.exe batch   D:\scenes D:\out [-r]   :: non-scene .png files (pictures, cards) are skipped
+KksSceneConv.exe convert in.png [out.png] [-v]     :: convert (default output name: in_kk.png)
+KksSceneConv.exe check   scene.png                 :: parse only (KK or KKS)
+KksSceneConv.exe batch   D:\scenes D:\out [-r]     :: convert every *.png in a folder (-r: subfolders too; non-scene pictures and cards are skipped)
 KksSceneConv.exe help
 ```
 
-Exit codes: 0 ok, 1 failed / NG, 2 usage. The exe is a GUI-subsystem binary, so `cmd.exe` may return the prompt before the output finishes; use `start /wait` or `Start-Process -Wait` when you need the exit code from a script (see `tools/selftest.ps1`).
+Exit codes: 0 = success, 1 = failed / NG, 2 = usage error.
 
-### Build
+> Because the exe is built as a GUI application, the exit code may be returned before the conversion has actually finished. If a batch file or script needs the exit code, wait for the process with `start /wait` or `Start-Process -Wait`.
+
+### Build / self-test
 
 ```powershell
-pwsh -File tools/build.ps1
-pwsh -File tools/selftest.ps1 -Scene "your KKS scene.png"
-dotnet test KksSceneConv.sln   # unit tests (synthetic scenes, no game data needed)
+pwsh -File tools/build.ps1                                 # produces dist\self-contained and dist\lite
+pwsh -File tools/selftest.ps1 -Scene "your KKS scene.png"  # convert -> re-parse -> compare with the Python reference
+dotnet test KksSceneConv.sln                               # unit tests (synthetic scenes; no scene file needed)
 ```
 
-Requires the .NET 8 SDK or newer. **Bring your own scenes**; the repository contains no game assets apart from two test scenes in `tests/fixtures/real/`. [exapmle/kks2kk.py](exapmle/kks2kk.py) is the Python reference the C# port was verified against (byte-identical output).
+Requires the .NET 8 SDK or newer.
 
-`dotnet test` also round-trips the real scenes in `tests/fixtures/real/`; point `KKS_SCENES_DIR` at a folder to run the same checks on your own scenes. CI sets `KKS_REQUIRE_REAL_SCENES=1`, so missing fixtures fail the build instead of being skipped.
+### What the conversion does
+
+| Item | Change |
+|---|---|
+| Scene version | `1.1.x` → `1.0.4.2` |
+| Chara cards | Mark `【KoiKatuCharaSun】` → `【KoiKatuChara】`; block versions newer than KK knows (e.g. Parameter 0.0.6), which KK would otherwise skip, are lowered to ones KK accepts |
+| KKS-only fields | Item `animePattern` and scene `shaderType` / `SkyInfo` are removed |
+| Text objects | Removed, since KK has no Text object (child counts are recomputed) |
+| Background | Paths like `UserData/bg/x.png` are reduced to the file name |
+| Timeline | `owner="KKSPE"` from KKSPE is renamed to `KKPE` |
+
+Everything else is identical between the two games and is copied as is.
 
 ### Disclaimer
 
-Unofficial third-party tool, not affiliated with the game's publisher. Use at your own risk.
+Unofficial third-party tool, not affiliated with the game's developer or publisher. Use at your own risk.
 
 ### License
 
