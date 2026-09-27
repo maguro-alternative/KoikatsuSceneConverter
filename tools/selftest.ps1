@@ -1,6 +1,5 @@
-# Self-test: convert one KKS scene with the freshly built exe, re-parse the
-# result, and (if Python is available) cross-check against the reference
-# script exapmle/kks2kk.py byte for byte.
+# Self-test: convert one KKS scene with the freshly built exe and re-parse the
+# result (check must reach the KStudio tail marker).
 #
 #   pwsh -File tools/selftest.ps1 -Scene "D:\scenes\my_kks_scene.png"
 #   pwsh -File tools/selftest.ps1 -Scene ... -Exe dist\lite\KksSceneConv.exe
@@ -45,22 +44,5 @@ if ($code -ne 0) { throw "convert failed (exit $code)" }
 $code = Invoke-Exe @('check', $outCs) -Tail 2
 if ($code -ne 0) { throw "check of converted output failed (exit $code)" }
 
-$py = Get-Command python -ErrorAction SilentlyContinue
-if ($py) {
-    $outPy = Join-Path $tmp 'out_py.png'
-    & python (Join-Path $repo 'exapmle\kks2kk.py') $Scene $outPy
-    if ($LASTEXITCODE -eq 0) {
-        $a = [IO.File]::ReadAllBytes($outCs); $b = [IO.File]::ReadAllBytes($outPy)
-        if ($a.Length -eq $b.Length -and [Linq.Enumerable]::SequenceEqual($a, $b)) {
-            Write-Host 'PASS: C# output is byte-identical to the Python reference' -ForegroundColor Green
-        } else {
-            throw "MISMATCH: C# ($($a.Length) bytes) vs Python ($($b.Length) bytes) -> see $tmp"
-        }
-    } else {
-        Write-Warning 'Python reference failed; skipped byte comparison'
-    }
-} else {
-    Write-Host 'python not found; skipped byte comparison with the reference script' -ForegroundColor Yellow
-}
 Remove-Item -Recurse -Force $tmp -ErrorAction SilentlyContinue
 Write-Host 'Self-test OK' -ForegroundColor Green

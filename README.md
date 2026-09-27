@@ -63,7 +63,7 @@ KksSceneConv.exe help
 
 ```powershell
 pwsh -File tools/build.ps1                                 # dist\self-contained と dist\lite を生成
-pwsh -File tools/selftest.ps1 -Scene "KKS のシーン.png"   # 変換 → 再解析 → Python 版と一致するか比較
+pwsh -File tools/selftest.ps1 -Scene "KKS のシーン.png"   # 変換 → 出力を再解析して構造を確認
 dotnet test KksSceneConv.sln                               # 単体テスト（合成シーンを使うためシーン不要）
 ```
 
@@ -131,7 +131,7 @@ Exit codes: 0 = success, 1 = failed / NG, 2 = usage error.
 
 ```powershell
 pwsh -File tools/build.ps1                                 # produces dist\self-contained and dist\lite
-pwsh -File tools/selftest.ps1 -Scene "your KKS scene.png"  # convert -> re-parse -> compare with the Python reference
+pwsh -File tools/selftest.ps1 -Scene "your KKS scene.png"  # convert -> re-parse the output to check its structure
 dotnet test KksSceneConv.sln                               # unit tests (synthetic scenes; no scene file needed)
 ```
 

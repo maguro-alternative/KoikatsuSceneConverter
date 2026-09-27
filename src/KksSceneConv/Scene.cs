@@ -5,8 +5,8 @@ using System.Globalization;
 using System.IO;
 using System.Text;
 
-// Port of exapmle/kks2kk.py.  Down-converts a Koikatsu Sunshine (KKS) Studio
-// scene .png so that Koikatsu (KK) CharaStudio can load it.
+// Down-converts a Koikatsu Sunshine (KKS) Studio scene .png so that Koikatsu
+// (KK) CharaStudio can load it.
 //
 // Why KK cannot read KKS scenes (verified by decompiling both Assembly-CSharp):
 //   * KK SceneInfo.Load has no version guard; it reads the stream with the KK
