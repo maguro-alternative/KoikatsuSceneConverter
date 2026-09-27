@@ -7,6 +7,10 @@ on:
   pull_request:
   workflow_dispatch:
 
+# The repo's default GITHUB_TOKEN is read-only; creating a Release needs contents: write.
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: windows-latest
