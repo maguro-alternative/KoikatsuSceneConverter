@@ -35,7 +35,6 @@ GUIアプリとして使えますが、CLI上で扱うこともできます。
 | `KksSceneConv.exe`（約 66 MB） | **推奨**。解凍してそのままご利用可能です。 |
 | `KksSceneConv-lite.exe`（約 1 MB） | ご利用いただく場合、[.NET 8.0](https://dotnet.microsoft.com/download/dotnet/8.0) 以上が必要です。 |
 
-> 起動時や出力先の選択時に `ui-lang.txt` と `last-output-dir.txt` が exe の隣に作られます（ポータブル。レジストリには書きません）。
 
 ### 使い方（GUI）
 
@@ -104,8 +103,6 @@ From [Releases](../../releases):
 |---|---|
 | `KksSceneConv.exe` (≈66 MB) | **Recommended.** Unzip and run; nothing else to install. |
 | `KksSceneConv-lite.exe` (≈1 MB) | Requires [.NET 8.0](https://dotnet.microsoft.com/download/dotnet/8.0) or newer. |
-
-> `ui-lang.txt` and `last-output-dir.txt` are created next to the exe on startup / when an output folder is chosen (portable; nothing is written to the registry).
 
 ### Usage (GUI)
 
