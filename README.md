@@ -81,7 +81,7 @@ dotnet test KksSceneConv.sln                               # 単体テスト（�
 | 背景 | `UserData/bg/x.png` のようなパスをファイル名のみに |
 | Timeline | KKSPE 由来の `owner="KKSPE"` を `KKPE` に変更 |
 
-それ以外（カメラ・ライト・BGM・環境・ExtensibleSaveFormat の末尾）は両ゲームで同一のため、バイト単位でそのままコピーします。
+それ以外の要素は両ゲームで同一のためそのままコピーします。
 
 ### 免責
 
