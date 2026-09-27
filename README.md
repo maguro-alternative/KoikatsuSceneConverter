@@ -68,11 +68,7 @@ pwsh -File tools/selftest.ps1 -Scene "KKS のシーン.png"   # 変換 → 再�
 dotnet test KksSceneConv.sln                               # 単体テスト（合成シーンを使うためシーン不要）
 ```
 
-.NET 8 SDK 以降が必要です。**シーンはご自身で用意してください**。リポジトリにゲーム素材は含まれません（例外はテスト用の実シーン2件 `tests/fixtures/real/*.png` のみ）。
-
-`dotnet test` は `tests/fixtures/real/` の実シーンでも「変換 → 再解析」を検証します。環境変数 `KKS_SCENES_DIR` でフォルダを指定すると、手元のシーンでも同じ検証ができます。CI では `KKS_REQUIRE_REAL_SCENES=1` を設定し、実シーンが見つからない場合はスキップではなく失敗にしています。
-
-[exapmle/kks2kk.py](exapmle/kks2kk.py) は移植元の Python 版リファレンス実装です。C# 版は同じ入力に対して同じバイト列を出力します。
+.NET 8 SDK 以降が必要です。
 
 ### 変換で行うこと
 
